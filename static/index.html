@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratório do Canal Universal</title>
+<style>
+  :root {
+    --bg: #101418; --panel: #171d24; --card: #1d242d; --line: #2b3540;
+    --ink: #e8edf2; --ink-2: #9fadba; --accent: #e08a2e; --accent-ink: #16100a;
+    --ok: #4cae8a; --erro: #d97c7c; --lab: #7aa7d6;
+    font-size: 15px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif; height: 100vh;
+    display: grid; grid-template-columns: 1fr minmax(280px, 26rem);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "topo topo" "chat lab" "composer lab";
+  }
+  header {
+    grid-area: topo; display: flex; align-items: baseline; gap: 1rem;
+    padding: .7rem 1.2rem; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 1rem; margin: 0; letter-spacing: .02em; }
+  header .modo { font-size: .78rem; color: var(--ink-2); font-family: ui-monospace, monospace; }
+  header .modo b { color: var(--lab); font-weight: 600; }
+
+  #chat { grid-area: chat; overflow-y: auto; padding: 1.2rem; display: flex; flex-direction: column; gap: .6rem; }
+  .msg { max-width: 44rem; padding: .55rem .9rem; border-radius: 10px; line-height: 1.5; }
+  .msg.operador { align-self: flex-end; background: #2a3b4d; }
+  .msg.ia { align-self: flex-start; background: var(--card); border: 1px solid var(--line); }
+  .msg.plataforma { align-self: flex-start; background: transparent; color: var(--ink-2); font-style: italic; font-size: .88rem; padding: .1rem .3rem; }
+
+  .card {
+    align-self: flex-start; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: .8rem 1rem; max-width: 44rem; width: 100%;
+  }
+  .card h4 { margin: 0 0 .5rem; font-size: .92rem; }
+  .card.resolvida { opacity: .55; }
+  .opcoes { display: flex; flex-direction: column; gap: .4rem; }
+  .opcoes button {
+    text-align: left; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; cursor: pointer;
+  }
+  .opcoes button:hover:not(:disabled) { border-color: var(--accent); }
+  .opcoes button:disabled { cursor: default; opacity: .6; }
+  .opcoes button.escolhida { border-color: var(--accent); background: #33261404; outline: 1px solid var(--accent); }
+  .opcoes small { display: block; color: var(--ink-2); }
+
+  .medidor { margin-top: .5rem; font-size: .84rem; font-variant-numeric: tabular-nums; }
+  .medidor.curto { color: var(--erro); }
+  .medidor.atingido { color: var(--ok); }
+
+  .card.coleta { border-left: 3px solid var(--accent); }
+  .card.coleta .pergunta { font-size: 1rem; }
+  .card.coleta .dica { display: block; margin-top: .35rem; color: var(--ink-2); font-size: .78rem; }
+  .card.coleta.resolvida .dica { text-decoration: line-through; }
+
+  .campo { display: flex; flex-direction: column; gap: 2px; margin-bottom: .5rem; }
+  .campo label { font-size: .8rem; color: var(--ink-2); }
+  .campo input {
+    background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 6px; padding: .42rem .6rem; font: inherit;
+  }
+  .acoes { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); border-radius: 7px; padding: .45rem .9rem;
+         background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; }
+  .btn.primaria { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .erros { color: var(--erro); font-size: .85rem; margin-top: .4rem; white-space: pre-line; }
+
+  dl.linhas { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .2rem .9rem; }
+  dl.linhas dt { color: var(--ink-2); } dl.linhas dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  .tarefa { display: flex; align-items: center; gap: .6rem; color: var(--ink-2); font-size: .9rem; }
+  .tarefa .spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent);
+                  border-radius: 50%; animation: g .9s linear infinite; }
+  @keyframes g { to { transform: rotate(360deg); } }
+  .tarefa.concluida .spin { display: none; }
+  .tarefa.concluida { color: var(--ok); }
+
+  a.link-boleto { color: var(--accent); font-weight: 600; }
+  table { border-collapse: collapse; font-size: .9rem; }
+  td, th { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; }
+
+  #composer { grid-area: composer; display: flex; gap: .6rem; padding: .8rem 1.2rem;
+              border-top: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  #chips { display: flex; gap: .4rem; flex-basis: 100%; flex-wrap: wrap; }
+  #chips button { font-size: .78rem; padding: .25rem .6rem; border-radius: 999px;
+                  background: transparent; color: var(--ink-2); border: 1px solid var(--line); cursor: pointer; }
+  #chips button:hover { color: var(--ink); border-color: var(--accent); }
+  #texto { flex: 1; background: var(--card); border: 1px solid var(--line); color: var(--ink);
+           border-radius: 8px; padding: .6rem .9rem; font: inherit; }
+  #enviar { min-width: 6rem; }
+
+  #lab { grid-area: lab; border-left: 1px solid var(--line); background: var(--panel);
+         overflow-y: auto; padding: 1rem; font-size: .82rem; }
+  #lab h3 { margin: 0 0 .6rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--lab); }
+  #lab section { margin-bottom: 1.2rem; }
+  #estado, .cmd { font-family: ui-monospace, Consolas, monospace; }
+  #estado .vazio { color: var(--ink-2); }
+  .pergunta-aberta { padding: .3rem .5rem; border: 1px dashed var(--line); border-radius: 6px; margin-bottom: .3rem; }
+  .cmd { border-left: 3px solid var(--lab); padding: .35rem .6rem; margin-bottom: .5rem;
+         background: var(--card); border-radius: 0 6px 6px 0; white-space: pre-wrap; word-break: break-word; }
+  .cmd .meta { color: var(--ink-2); }
+  .cmd.erro { border-left-color: var(--erro); }
+  .externa-lab button { margin-top: .3rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Laboratório do Canal Universal</h1>
+  <span class="modo">intérprete: <b id="modo">…</b></span>
+</header>
+
+<main id="chat"></main>
+
+<aside id="lab">
+  <section>
+    <h3>Perguntas abertas</h3>
+    <div id="estado"><span class="vazio">nenhuma — conversa livre</span></div>
+  </section>
+  <section>
+    <h3>Operação ativa</h3>
+    <div id="ativa" class="cmd" style="border-left-color: var(--accent)">nenhuma</div>
+  </section>
+  <section>
+    <h3>Comandos do intérprete</h3>
+    <div id="comandos"></div>
+  </section>
+</aside>
+
+<footer id="composer">
+  <div id="chips">
+    <button data-t="Olá">Olá</button>
+    <button data-t="Quero gerar um boleto">Quero gerar um boleto</button>
+    <button data-t="CPF é 529.982.247-25, valor 5 mil, vencimento 22/01/2027">CPF + valor + vencimento</button>
+    <button data-t="consultar o cliente 52998224725">Consultar cliente</button>
+    <button data-t="preciso cadastrar um fornecedor novo">Fornecedor (10 campos, nada informado)</button>
+    <button data-t="cadastrar fornecedor CNPJ 11.222.333/0001-81, razão social Aurora Insumos LTDA, nome fantasia Aurora, email compras@aurora.com.br, telefone 11 98888-7777, CEP 01310-100, banco Itaú, agência 1234">Fornecedor (8 de 10 na fala)</button>
+    <button data-t="quero gerar uma proposta de empréstimo para a empresa CNPJ 11.222.333/0001-81">Proposta de empréstimo PJ</button>
+    <button data-t="proposta de empréstimo para o CNPJ 44.555.666/0001-81, 250 mil em 24 parcelas, primeira em 10/03/2027">Proposta — empresa sem conta</button>
+    <button data-t="proposta de empréstimo para o CNPJ 33.444.555/0001-81, 250 mil em 24 parcelas, primeira em 10/03/2027">Proposta — sócios abaixo de 50%</button>
+    <button data-t="quero pedir uma pizza">Fora do catálogo</button>
+  </div>
+  <input id="texto" placeholder="Escreva como um operador…" autocomplete="off">
+  <button id="enviar" class="btn primaria">Enviar</button>
+</footer>
+
+<script>
+const chat = document.getElementById("chat");
+const labEstado = document.getElementById("estado");
+const labAtiva = document.getElementById("ativa");
+const labComandos = document.getElementById("comandos");
+let sessaoId = null;
+const cartoes = {};   // pergunta_id -> elemento
+
+function el(tag, cls, html) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html !== undefined) n.innerHTML = html;
+  return n;
+}
+function baixo() { chat.scrollTop = chat.scrollHeight; }
+// Uma pergunta = um cartão. Reabrir a MESMA pergunta substitui no lugar,
+// nunca empilha um segundo cartão pedindo a mesma coisa.
+function colocar(card, perguntaId) {
+  const antigo = cartoes[perguntaId];
+  if (antigo && antigo.isConnected) antigo.replaceWith(card);
+  else chat.appendChild(card);
+  cartoes[perguntaId] = card;
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function api(caminho, corpo) {
+  const r = await fetch(caminho, {
+    method: corpo ? "POST" : "GET",
+    headers: corpo ? {"Content-Type": "application/json"} : {},
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  return r.json();
+}
+const enviar = (corpo) => api(`/api/sessoes/${sessaoId}/entradas`, corpo);
+
+// ------------------------------------------------------------- render
+
+function rTexto(ev) {
+  chat.appendChild(el("div", `msg ${ev.papel}`, esc(ev.texto)));
+}
+
+function rOpcoes(ev) {
+  const card = el("div", "card");
+  const box = el("div", "opcoes");
+  for (const o of ev.opcoes) {
+    const b = el("button", null,
+      `<b>${esc(o.rotulo)}</b><small>${esc(o.descricao || "")}</small>`);
+    b.onclick = () => {
+      box.querySelectorAll("button").forEach(x => x.disabled = true);
+      b.classList.add("escolhida");
+      enviar({pergunta_id: ev.pergunta_id, resposta: {opcao: o.id}});
+    };
+    box.appendChild(b);
+  }
+  card.appendChild(box);
+  colocar(card, ev.pergunta_id);
+}
+
+// A coleta é uma PERGUNTA FALADA: responde-se na conversa, não num campo.
+function rColeta(ev) {
+  const card = el("div", "card coleta");
+  card.appendChild(el("div", "pergunta", esc(ev.pergunta)));
+  card.appendChild(el("small", "dica",
+    `responda na conversa · ${ev.campo.rotulo} (${ev.campo.formato})` +
+    (ev.restantes ? ` · faltam mais ${ev.restantes}` : " · é o último")));
+  colocar(card, ev.pergunta_id);
+}
+
+function rFormulario(ev) {
+  const card = el("div", "card");
+  card.appendChild(el("h4", null, esc(ev.titulo)));
+  const inputs = {};
+  for (const c of ev.campos) {
+    const campo = el("div", "campo");
+    const jaTem = c.valor && !ev.pendentes.includes(c.nome);
+    campo.appendChild(el("label", null, `${esc(c.rotulo)} <i style="opacity:.6">(${c.formato})</i>`));
+    const inp = document.createElement("input");
+    inp.value = c.valor || "";
+    if (jaTem) inp.disabled = true;
+    inputs[c.nome] = inp;
+    campo.appendChild(inp);
+    card.appendChild(campo);
+  }
+  const erros = el("div", "erros");
+  const acoes = el("div", "acoes");
+  const ok = el("button", "btn primaria", "Enviar dados");
+  ok.onclick = () => {
+    const valores = {};
+    for (const [nome, inp] of Object.entries(inputs))
+      if (!inp.disabled && inp.value.trim()) valores[nome] = inp.value.trim();
+    enviar({pergunta_id: ev.pergunta_id, resposta: {valores}});
+  };
+  acoes.appendChild(ok);
+  card.appendChild(acoes);
+  card.appendChild(erros);
+  card._erros = erros;
+  colocar(card, ev.pergunta_id);
+}
+
+// Escolha única sobre uma busca real: um clique responde.
+function rEscolha(ev) {
+  const card = el("div", "card");
+  card.appendChild(el("h4", null, esc(ev.titulo)));
+  const box = el("div", "opcoes");
+  for (const o of ev.opcoes) {
+    const b = el("button", null,
+      `<b>${esc(o.rotulo)}</b><small>${esc(o.descricao || "")}</small>`);
+    b.onclick = () => {
+      box.querySelectorAll("button").forEach(x => x.disabled = true);
+      b.classList.add("escolhida");
+      enviar({pergunta_id: ev.pergunta_id, resposta: {ids: [o.id]}});
+    };
+    box.appendChild(b);
+  }
+  card.appendChild(box);
+  const erros = el("div", "erros");
+  card.appendChild(erros); card._erros = erros;
+  colocar(card, ev.pergunta_id);
+}
+
+// Conjunto com regra: marca vários, o total corre na tela, o CÓDIGO valida.
+function rConjunto(ev) {
+  const card = el("div", "card");
+  card.appendChild(el("h4", null, esc(ev.titulo)));
+  const regra = ev.regra || {};
+  const box = el("div", "opcoes");
+  const marcados = new Set();
+  const medidor = el("div", "medidor");
+  const ok = el("button", "btn primaria", "Confirmar seleção");
+
+  function atualizar() {
+    const soma = ev.opcoes.filter(o => marcados.has(o.id))
+                          .reduce((t, o) => t + (o[regra.campo] || 0), 0);
+    const falta = (regra.soma_minima || 0) - soma;
+    medidor.className = "medidor" + (falta > 0 ? " curto" : " atingido");
+    medidor.textContent = falta > 0
+      ? `soma ${soma}${regra.unidade} · faltam ${falta}${regra.unidade} para o mínimo de ${regra.soma_minima}${regra.unidade}`
+      : `soma ${soma}${regra.unidade} · mínimo de ${regra.soma_minima}${regra.unidade} atingido`;
+  }
+
+  for (const o of ev.opcoes) {
+    const b = el("button", null,
+      `<b>${esc(o.rotulo)}</b>${regra.campo ? ` — ${o[regra.campo]}${regra.unidade}` : ""}` +
+      `<small>${esc(o.descricao || "")}</small>`);
+    b.onclick = () => {
+      if (marcados.has(o.id)) { marcados.delete(o.id); b.classList.remove("escolhida"); }
+      else { marcados.add(o.id); b.classList.add("escolhida"); }
+      atualizar();
+    };
+    box.appendChild(b);
+  }
+  ok.onclick = () => enviar({pergunta_id: ev.pergunta_id, resposta: {ids: [...marcados]}});
+
+  card.appendChild(box);
+  card.appendChild(medidor);
+  const acoes = el("div", "acoes"); acoes.appendChild(ok); card.appendChild(acoes);
+  const erros = el("div", "erros");
+  card.appendChild(erros); card._erros = erros;
+  atualizar();
+  colocar(card, ev.pergunta_id);
+}
+
+function rConfirmacao(ev) {
+  const card = el("div", "card");
+  card.appendChild(el("h4", null, esc(ev.titulo)));
+  const dl = el("dl", "linhas");
+  for (const l of ev.linhas) {
+    dl.appendChild(el("dt", null, esc(l.rotulo)));
+    dl.appendChild(el("dd", null, esc(l.valor)));
+  }
+  card.appendChild(dl);
+  const erros = el("div", "erros");
+  const acoes = el("div", "acoes");
+  const bAprovar = el("button", "btn primaria", "Aprovar");
+  const bEditar = el("button", "btn", "Editar");
+  const bReprovar = el("button", "btn", "Reprovar");
+  let editando = false, inputs = {};
+
+  bAprovar.onclick = () => enviar({pergunta_id: ev.pergunta_id, resposta: {acao: "aprovar"}});
+  bReprovar.onclick = () => enviar({pergunta_id: ev.pergunta_id, resposta: {acao: "reprovar"}});
+  bEditar.onclick = () => {
+    if (!editando) {
+      editando = true;
+      dl.innerHTML = "";
+      for (const l of ev.linhas) {
+        dl.appendChild(el("dt", null, esc(l.rotulo)));
+        // Escolha feita sobre busca não vira campo de texto.
+        if (l.editavel === false) { dl.appendChild(el("dd", null, esc(l.valor))); continue; }
+        const dd = el("dd");
+        const inp = document.createElement("input");
+        inp.value = l.bruto; inp.style.width = "100%";
+        inputs[l.nome] = inp; dd.appendChild(inp); dl.appendChild(dd);
+      }
+      bEditar.textContent = "Confirmar correção";
+      bAprovar.disabled = true;
+    } else {
+      const valores = {};
+      for (const [nome, inp] of Object.entries(inputs)) valores[nome] = inp.value.trim();
+      enviar({pergunta_id: ev.pergunta_id, resposta: {acao: "editar", valores}});
+    }
+  };
+  acoes.append(bAprovar, bEditar, bReprovar);
+  card.appendChild(acoes);
+  card.appendChild(erros);
+  card._erros = erros;
+  colocar(card, ev.pergunta_id);
+}
+
+function rTarefa(ev) {
+  const done = ev.status !== "aguardando_externo";
+  const t = el("div", `card tarefa ${done ? "concluida" : ""}`,
+    `<span class="spin"></span><span>${esc(ev.texto)}</span>`);
+  if (ev.protocolo) t.dataset.protocolo = ev.protocolo;
+  if (done && ev.protocolo) {
+    // fecha o spinner do card anterior do mesmo protocolo
+    chat.querySelectorAll(`.tarefa[data-protocolo="${ev.protocolo}"]`)
+        .forEach(x => x.classList.add("concluida"));
+  }
+  chat.appendChild(t);
+}
+
+function rResultado(ev) {
+  const card = el("div", "card");
+  card.appendChild(el("h4", null, esc(ev.titulo || "Resultado")));
+  if (ev.tipo === "tabela") {
+    const tb = el("table");
+    tb.appendChild(el("tr", null, ev.colunas.map(c => `<th>${esc(c)}</th>`).join("")));
+    for (const linha of ev.linhas)
+      tb.appendChild(el("tr", null, linha.map(v => `<td>${esc(v)}</td>`).join("")));
+    card.appendChild(tb);
+  } else {
+    const dl = el("dl", "linhas");
+    for (const [k, v] of Object.entries(ev.dados || {})) {
+      dl.appendChild(el("dt", null, esc(k)));
+      dl.appendChild(el("dd", null, esc(v)));
+    }
+    card.appendChild(dl);
+  }
+  chat.appendChild(card);
+}
+
+function rLink(ev) {
+  chat.appendChild(el("div", "card",
+    `<a class="link-boleto" href="${esc(ev.url)}" target="_blank">📄 ${esc(ev.rotulo)}</a>`));
+}
+
+// ------------------------------------------------------------- laboratório
+
+function rEstado(ev) {
+  labEstado.innerHTML = "";
+  const abertas = ev.perguntas.filter(p => p.tipo !== "externa" || true);
+  if (!abertas.length) {
+    labEstado.innerHTML = '<span class="vazio">nenhuma — conversa livre</span>';
+  } else {
+    for (const p of abertas)
+      labEstado.appendChild(el("div", "pergunta-aberta",
+        `<b>${esc(p.tipo)}</b>${p.capacidade ? " · " + esc(p.capacidade) : ""} <span style="opacity:.5">#${esc(p.id)}</span>`));
+  }
+  labAtiva.textContent = ev.ativa
+    ? `${ev.ativa.capacidade}\nargs: ${JSON.stringify(ev.ativa.args)}`
+    : "nenhuma";
+  if (ev.recusadas && ev.recusadas.length)
+    labAtiva.textContent += `\nrecusadas: ${ev.recusadas.join(", ")}`;
+}
+
+function rComandos(ev) {
+  const bloco = el("div", `cmd ${ev.erro ? "erro" : ""}`);
+  bloco.innerHTML = `<span class="meta">[${esc(ev.modo)}]</span>\n` +
+    esc(JSON.stringify(ev.comandos, null, 1)) +
+    (ev.erro ? `\n<span class="meta">${esc(ev.erro)}</span>` : "");
+  labComandos.prepend(bloco);
+}
+
+function rExternaPendente(ev) {
+  const box = el("div", "cmd externa-lab",
+    `pergunta EXTERNA aberta · protocolo ${esc(ev.protocolo)}\n` +
+    `o parceiro responde sozinho em ${ev.segundos}s…`);
+  const b = el("button", "btn", "Simular parceiro agora");
+  b.onclick = async () => { b.disabled = true; await api(`/api/webhook/${ev.token}`, {}); };
+  box.appendChild(document.createElement("br"));
+  box.appendChild(b);
+  labComandos.prepend(box);
+}
+
+function rFormularioErros(ev) {
+  const card = cartoes[ev.pergunta_id];
+  if (card && card._erros) card._erros.textContent = ev.erros.join("\n");
+}
+
+function rResolvida(ev) {
+  const card = cartoes[ev.pergunta_id];
+  if (!card) return;
+  card.classList.add("resolvida");
+  card.querySelectorAll("button, input").forEach(x => x.disabled = true);
+}
+
+// Mesma pergunta, estado novo: re-renderiza o cartão existente no lugar.
+function rAtualizada(ev) { (RENDER[ev.forma] || (() => {}))(ev); }
+
+const RENDER = {
+  texto: rTexto, opcoes: rOpcoes, formulario: rFormulario, confirmacao: rConfirmacao,
+  escolha: rEscolha, conjunto: rConjunto,
+  coleta: rColeta, tarefa: rTarefa, resultado: rResultado, link: rLink, estado: rEstado,
+  comandos: rComandos, externa_pendente: rExternaPendente, atualizada: rAtualizada,
+  formulario_erros: rFormularioErros, resolvida: rResolvida, externa: () => {},
+};
+
+// ------------------------------------------------------------- boot
+
+async function boot() {
+  const info = await api("/api/info");
+  document.getElementById("modo").textContent = info.interprete;
+  const s = await api("/api/sessoes", {});
+  sessaoId = s.id;
+  const fonte = new EventSource(`/api/sessoes/${sessaoId}/eventos`);
+  fonte.onmessage = (m) => {
+    const ev = JSON.parse(m.data);
+    (RENDER[ev.tipo] || (() => {}))(ev);
+    baixo();
+  };
+}
+
+const campoTexto = document.getElementById("texto");
+function mandarTexto() {
+  const t = campoTexto.value.trim();
+  if (!t || !sessaoId) return;
+  campoTexto.value = "";
+  enviar({texto: t});
+}
+document.getElementById("enviar").onclick = mandarTexto;
+campoTexto.addEventListener("keydown", e => { if (e.key === "Enter") mandarTexto(); });
+document.getElementById("chips").addEventListener("click", e => {
+  const t = e.target.closest("button")?.dataset.t;
+  if (t) { campoTexto.value = t; mandarTexto(); }
+});
+
+boot();
+</script>
+</body>
+</html>
